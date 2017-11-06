@@ -1,0 +1,158 @@
+---
+output: 
+  html_document: 
+    keep_md: yes
+---
+# Reproducible Research: Week 2 Assignment
+by AC
+
+#### Call the library
+```{r echo=TRUE}
+library(knitr)
+```
+
+#### Download the file
+```{r echo=TRUE}
+fil <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(fil, destfile="./activity.zip")
+```
+
+#### Unzip the file
+```{r echo=TRUE}
+unzip(zipfile="./activity.zip")
+```
+
+## Read the downloaded CSV file
+```{r echo=TRUE}
+act <- read.csv("activity.csv")
+```
+
+#### Dimensions
+```{r echo=TRUE}
+dim(act)
+```
+
+#### Variables present
+```{r echo=TRUE}
+names(act)
+```
+
+#### Check classes of variables
+```{r echo=TRUE}
+str(act)
+```
+
+## Mean total steps per day (ignoring NAs)
+```{r echo=TRUE}
+library(dplyr)
+perday <- group_by(act, date)
+spd <- summarise(perday, tot=sum(steps))
+```
+
+### Histogram
+```{r}
+hist(spd$tot, col = "Blue", xlab = "Average no. of steps", ylab = "No. of days", main = "Total number of steps taken each day")
+```
+
+## Mean & Median
+```{r echo=TRUE}
+paste("Mean of steps per day: ",mean(spd$tot, na.rm = T))
+paste("Median of steps per day: ",median(spd$tot, na.rm = T))
+```
+
+#### Create table containing average no. of steps per interval
+```{r echo=TRUE}
+gb <- group_by(act, interval)
+avgint <- summarise(gb, avg=mean(steps, na.rm = T))
+```
+
+## Time Series plot
+```{r echo=TRUE}
+plot(avgint$interval, avgint$avg, type="l", xlab = "5 minute Intervals", ylab = "Average no. of steps", main = "Average no. of steps in each interval")
+```
+
+## Maximum avg steps across intervals
+```{r echo=TRUE}
+paste("Interval with maximum average steps per day: ", avgint$interval[avgint$avg %in% max(avgint$avg)])
+```
+
+### Imputing missing values
+```{r echo=TRUE}
+paste("No. of NAs in data set: ", nrow(act[act$steps %in% NA,]))
+```
+
+## Strategy to replace NA values: Replace with Mean for that Interval
+```{r echo=TRUE}
+for(i in 1:nrow(act)){
+    if(act$steps[i] %in% NA)
+    {
+        act$steps[i]=avgint$avg[act$interval[i] == avgint$interval]
+    }
+}
+paste("No. of NAs after update: ", nrow(act[act$steps %in% NA,]))
+```
+
+Dimensions of updated data set
+```{r echo=TRUE}
+dim(act)
+```
+
+## Histogram for total no. of steps per day
+```{r echo=TRUE}
+perday <- group_by(act, date)
+nona <- summarise(perday, total=sum(steps))
+hist(nona$total, col = "Red", xlab = "Average no. of steps", ylab = "No. of days", main = "Total number of steps taken each day: No NAs")
+```
+
+## Mean
+```{r}
+paste("Mean no. of steps per day: ", mean(nona$total))
+```
+
+## Median
+```{r}
+paste("Median no. of steps per day: ", median(nona$total))
+```
+
+There is no significant change in values of mean and median despite the imputation.
+
+
+#### Change date from factor to date data type
+```{r echo=TRUE}
+act$date <- as.Date(act$date)
+class(act$date)
+day <- vector()
+for(i in 1:nrow(act)){
+    if(weekdays(act$date[i]) %in% "Monday"|weekdays(act$date[i]) %in% "Tuesday"|weekdays(act$date[i]) %in% "Wednesday"|weekdays(act$date[i]) %in% "Thurday"|weekdays(act$date[i]) %in% "Friday")
+    {
+        day[i] <- "Weekday"
+    }
+    else
+    {
+        day[i] <- "Weekend"
+    }
+}
+act <- cbind(act,day)
+act$day <- as.factor(act$day)
+levels(act$day)
+```
+
+#### Separating weekdays and weekend data
+```{r echo=TRUE}
+wd <- act[act$day %in% "Weekday",]
+we <- act[act$day %in% "Weekend",]
+gbwd <- group_by(wd, interval)
+gbwe <- group_by(we, interval)
+avgwd <- summarise(gbwd, avg=mean(steps))
+avgwe <- summarise(gbwe, avg=mean(steps))
+```
+
+## Panel Time Series Plots: Weekdays & Weekend
+```{r echo=TRUE}
+par(mfrow=c(2,1))
+plot(avgwd$interval, avgwd$avg, type="l", xlab = "5 minute Intervals", ylab = "Average no. of steps", main = "Average no. of steps in each interval: Weekdays", ylim = c(0,250))
+plot(avgwe$interval, avgwe$avg, type="l", xlab = "5 minute Intervals", ylab = "Average no. of steps", main = "Average no. of steps in each interval: Weekend", ylim = c(0,250))
+```
+
+
+
